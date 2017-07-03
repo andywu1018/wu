@@ -1,0 +1,48 @@
+# 文本分类---TF-IDF
+# TF-term frequency-词频：某个词t在文档d中出现的频率
+# IDF-inverse document frequncy-逆文档频率：若词t在其他文档中也是高频词，则在此文档中的权重会降低；若只有在某文档d是高频词则idf（t，d）会很高。
+
+# TF-IDF在Python中的使用
+# 准备文档
+# 文档分词
+
+import jieba  
+
+wordslist = []
+titlelist = []
+# 遍历文件夹
+for file in os.listdir('.'):
+    if '.' not in file:
+        # 遍历文档
+        for f in os.listdir(file):
+            # 标题
+            f=f.encode('utf-8')
+            titlelist.append(file+'--'+f.split('.')[0])
+            # 读取文档
+            with open(file + '//' + f, 'r') as f:
+                content = f.read().strip().replace('\n', '').replace(' ', '').replace('\t', '').replace('\r', '')
+            # 分词
+            seg_list = jieba.cut(content, cut_all=True)
+            result = ' '.join(seg_list)
+            wordslist.append(result)
+# 准备停用词  
+stop_word = [unicode(line.rstrip()) for line in open('chinese_stopword.txt')]
+
+...
+seg_list = jieba.cut(content, cut_all=True)
+seg_list_after = []
+# 去停用词
+for seg in seg_list:
+    if seg.word not in stop_word:
+        seg_list_after.append(seg)
+result = ' '.join(seg_list_after)
+wordslist.append(result)
+
+# 添加停用词
+jieba.add_word(u'巴啦啦小魔仙')
+
+# sklearn中的TF-IDF实现
+
+vectorizer = CountVectorizer()   # trans t too matrix,matrix[i][j]==TF(j,i)
+word_frequence = vectorizer.fit_transform(wordslist) # trans matrix[i][j] too matrix[]
+words = vectorizer.get_feature_names()
