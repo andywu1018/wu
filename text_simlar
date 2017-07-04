@@ -1,0 +1,106 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Tue Jun 06 13:04:23 2017
+
+@author: admin
+"""
+import pandas as pd
+import MySQLdb
+import numpy as np
+import datetime
+import jieba
+from collections import Counter
+from gensim.models.doc2vec import TaggedDocument,Doc2Vec
+from gensim import models,corpora,similarities
+
+#=======================================文本相似度计算=============================================
+def Text_similarity(title,content,IDS,Sources,Dates):
+    Sous = []
+    corpora_documents = []
+    for item_text in title:
+        item_seg = list(jieba.cut(item_text))     #分词处理
+        corpora_documents.append(item_seg)
+    dictionary = corpora.Dictionary(corpora_documents) # 生成字典和向量语料
+    corpus = [dictionary.doc2bow(text) for text in corpora_documents]
+    tfidf_model = models.TfidfModel(corpus)
+    corpus_tfidf = tfidf_model[corpus]
+    lsi = models.LsiModel(corpus_tfidf)  
+    corpus_lsi = lsi[corpus_tfidf]  
+    similarity_lsi=similarities.Similarity('Similarity-LSI-index', corpus_lsi, num_features=500,num_best=5) 
+    for i in range(len(title)):
+        if len(title[i]) > 0:
+            test_data_1 = title[i]
+            test_cut_raw_1 = list(jieba.cut(test_data_1))  
+            test_corpus_1 = dictionary.doc2bow(test_cut_raw_1)  
+            test_corpus_tfidf_1=tfidf_model[test_corpus_1]
+            test_corpus_lsi_1 = lsi[test_corpus_tfidf_1] 
+            sourc = []
+            for j in range(len(similarity_lsi[test_corpus_lsi_1])):
+                if similarity_lsi[test_corpus_lsi_1][j][1] >= 0.95 and similarity_lsi[test_corpus_lsi_1][j][0] != i: # >=1.0 严格去重复
+                    if similarity_lsi[test_corpus_lsi_1][j][0] > i:
+                        title[similarity_lsi[test_corpus_lsi_1][j][0]] = []
+                        sourc.append(Sources[similarity_lsi[test_corpus_lsi_1][j][0]])
+            sourc.append(Sources[i])            
+            Sous.append(sourc)
+    Content = []        
+    Title = []
+    ID_NEWS = []
+    DATES = []
+    for i in range(len(title)):
+        if len(title[i]) > 0:
+            Content.append(content[i])
+            Title.append(title[i])
+            ID_NEWS.append(IDS[i])
+            DATES.append(Dates[i])
+            
+            
+    return Title,Content,ID_NEWS,Sous,DATES
+
+#=======================================筛选数据=============================================
+def Information_cleaning(ID,titles,contexts,source,dates,timepoint):
+    title = []
+    content = []
+    IDS = []
+    Source = []
+    Dates = []
+    for i in range(len(ID)):
+        if datetime.datetime.strptime(str(dates[i])[0:10], "%Y-%m-%d") > datetime.datetime.strptime(timepoint, "%Y-%m-%d"): #判断时效性
+            title.append(titles[i])
+            content.append(contexts[i])
+            IDS.append(ID[i])
+            Source.append(sources[i])
+            Dates.append(str(dates[i]))
+    return title,content,IDS,Source,Dates  
+
+if __name__ == '__main__': 
+    conn= MySQLdb.connect(
+            host='60.191.74.66',
+            port = 3306,
+            user='lwj',
+            passwd='123456',
+            db ='china_news',
+            charset='utf8'
+            )
+    table_names = ["china_content","zhejiang_content"]
+    title_new = []
+    content_new = []
+    id_new = []
+    Sources_new = []
+    Dates_new = []
+    for i in range(1,2):
+        sqlcmd = "SELECT * FROM " + table_names[i]
+        data = pd.read_sql(sqlcmd,conn)
+        ID = data[data.columns[0]]
+        sources = data[data.columns[10]]
+        titles = data[data.columns[1]]
+        contexts = data[data.columns[3]] 
+        dates =  data[data.columns[4]]
+        timepoint = str(datetime.datetime.now() - datetime.timedelta(days=30))[0:10]
+        title,content,IDS,Sources,Dates = Information_cleaning(ID,titles,contexts,sources,dates,timepoint)
+        title_new.extend(title)
+        content_new.extend(content)
+        id_new.extend(IDS)
+        Sources_new.extend(Sources)
+        Dates_new.extend(Dates)
+        
+    Title,Content,ID_NEWS,Sous,DATES = Text_similarity(title_new,content_new,id_new,Sources_new,Dates_new)
