@@ -19,6 +19,8 @@ import re
 import string
 import time
 import numpy as np
+import pymysql
+import datetime
 
 delEStr = string.punctuation + ' ' + string.digits
 filename_list = []
@@ -59,20 +61,25 @@ for categoryName in category:
     for filename in filesList:
         if (filename == '.DS_Store'): continue
         starttime = time.clock()
-        contents = open(os.path.join(categoryPath, filename), encoding='utf8').read()
-        wordProcessed = filewordProcess(contents)  # 内容分词成列表
-        # 暂时不做#filenameWordProcessed = fileWordProcess(filename) # 文件名分词，单独做特征
-        #         words_list.append((wordProcessed,categoryName,filename)) # 训练集格式：[(当前文件内词列表，类别，文件名)]
-        words_list.append(wordProcessed)
-        filename_list.append(filename)
-        category_list.append(categoryName)
-        endtime = time.clock();
-        print('类别:%s >>>>文件:%s >>>>导入用时: %.3f' % (categoryName, filename, endtime - starttime))
+        contents = pd.read_table(categoryPath + '/' + filename, header=None, encoding='utf-8')
+        context = contents[1]
+        for i in range(len(context)):
+            wordProcessed = filewordProcess(context[i])  # 内容分词成列表
+            # 暂时不做#filenameWordProcessed = fileWordProcess(filename) # 文件名分词，单独做特征
+            #         words_list.append((wordProcessed,categoryName,filename)) # 训练集格式：[(当前文件内词列表，类别，文件名)]
+            words_list.append(wordProcessed)
+            filename_list.append(filename)
+            category_list.append(categoryName)
+            endtime = time.clock();
+            print('类别:%s >>>>文件:%s >>>>导入用时: %.3f' % (categoryName, filename, endtime - starttime))
 
 
-def Normalization(x):
-    x[x > 1] = 1
-    return x
+
+def MaxMinNormalization(x):
+    Min=np.min(x)
+    Max=np.max(x)
+    x = (x - Min) / (Max - Min);
+    return x;
 
 
 
@@ -86,38 +93,67 @@ def tfidf_mat(words_list,filename_list,category_list):
     feature_names = freWord.get_feature_names()  # 特征名
     freWordVector_df = pd.DataFrame(fre_matrix.toarray())  # 全词库 词频 向量矩阵
     tfidf_df = pd.DataFrame(tfidf.toarray())  # tfidf值矩阵
-    print(tfidf_df)
+    #print(tfidf_df)
     # print freWordVector_df
     # tf-idf 筛选
     tfidf_sx_featuresindex = tfidf_df.sum(axis=0).sort_values(ascending=False)[:10000].index
     freWord_tfsx_df = freWordVector_df.ix[:, tfidf_sx_featuresindex]  # tfidf法筛选后的词向量矩阵
     df_columns = pd.Series(feature_names)[tfidf_sx_featuresindex]
     print(df_columns)
-    print(freWord_tfsx_df)
+    #print(freWord_tfsx_df)
 
-    tfidf_df_1 = freWord_tfsx_df#.apply(Normalization)
+    tfidf_df_1 = MaxMinNormalization(freWord_tfsx_df)
+    #print(tfidf_df_1)
     tfidf_df_1.columns = df_columns
     le = preprocessing.LabelEncoder()  # 评分到0到n_class-1
-    tfidf_df_1['label'] = le.fit_transform(category_list)
+    tfidf_df_1['label'] = le.fit_transform(category_list) #类别和数字的映射
     tfidf_df_1.index = filename_list
+    print(tfidf_df_1)
     return tfidf_df_1,df_columns
 
 # 卡方检验
 def Chi_square_test(tfidf_df_1):
     ch2 = SelectKBest(chi2, k=10000)
     nolabel_feature = [x for x in tfidf_df_1.columns if x not in ['label']]
+    print(nolabel_feature)
     ch2_sx_np = ch2.fit_transform(tfidf_df_1[nolabel_feature],tfidf_df_1['label'])
     label_np = np.array(tfidf_df_1['label'])
     X = ch2_sx_np
     y = label_np
-    skf = KFold(len(X)+len(y),n_folds=3)
+    skf = KFold(len(y),n_folds=10)
     y_pre = y.copy()
     for train_index,test_index in skf:
         X_train,X_test = X[train_index],X[test_index]
         y_train,y_test = y[train_index],y[test_index]
         clf = MultinomialNB().fit(X_train, y_train)
         y_pre[test_index] = clf.predict(X_test)
+        joblib.dump(clf, "D:\文本分类\训练数据\\train_model.m", comress=3)
     print('准确率为 %.6f' % (np.mean(y_pre == y)))
     return y,y_pre,nolabel_feature
+
+tfidf_df_1,df_columns = tfidf_mat(words_list,filename_list,category_list)
+y,y_pre,nolabel_feature = Chi_square_test(tfidf_df_1)
+
+
+
+def tfidf_mat_pre(words_list,df_columns):
+    freWord = CountVectorizer(stop_words='english')
+    transformer = TfidfTransformer(use_idf=True)
+    fre_matrix = freWord.fit_transform(words_list)
+    tfidf = transformer.fit_transform(fre_matrix)
+    feature_names = freWord.get_feature_names()           #
+    tfidf_df = pd.DataFrame(np.zeros((1,10000)),index=['未知'],columns=range(10000))
+    tfidf_df.columns=df_columns
+    le = preprocessing.LabelEncoder()
+    tfidf_df['label'] = le.fit_transform(['未知'])
+    for strr in feature_names:
+        for i in range(len(tfidf_df.columns)):
+            if strr == tfidf_df.columns[i]:
+                tfidf_df[tfidf_df.columns[i]] = 1
+    ch2 = SelectKBest(chi2, k=15000)
+    nolabel_feature = [x for x in tfidf_df.columns if x not in ['label']]
+    ch2_sx_np = ch2.fit_transform(tfidf_df[nolabel_feature],tfidf_df['label'])
+    return ch2_sx_np
+
 
 
