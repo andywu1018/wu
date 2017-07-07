@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# author@datassis.com
 import codecs
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB
@@ -33,6 +34,7 @@ pre_text = codecs.open('D:\文本分类\esttext.txt', 'r', encoding='utf-8')
 pre_text = pre_text.read()
 
 
+
 #======读取编码为utf8的本文文件=====
 def readtext(path):
     text = codecs.open(path, 'r', encoding='utf-8')
@@ -45,9 +47,9 @@ stopwords = readtext('stop_words.txt')
 
 def filewordProcess(content):
     wordlist = []
-    content = re.sub(r'\s+',' ',content)
-    content = re.sub(r'\n',' ',content)
-    content = re.sub(r'\t',' ',content)
+    content = re.sub(r'\s+', ' ', content)
+    content = re.sub(r'\n', ' ', content)
+    content = re.sub(r'\t', ' ', content)
     for seg in jieba.cut(content,cut_all=False):
         if seg not in stopwords:
             if seg != ' ':
@@ -65,6 +67,7 @@ for categoryName in category:
         starttime = time.clock()
         contents = pd.read_table(categoryPath + '/' + filename, header=None, encoding='utf-8')
         context = contents[1]
+        context = context.dropna()
         for i in range(len(context)):
             wordProcessed = filewordProcess(context[i])  # 内容分词成列表
             # 暂时不做#filenameWordProcessed = fileWordProcess(filename) # 文件名分词，单独做特征
@@ -93,7 +96,7 @@ def tfidf_mat(words_list,filename_list,category_list):
     tfidf = transformer.fit_transform(fre_matrix)
 
     feature_names = freWord.get_feature_names()  # 特征名
-    freWordVector_df = pd.DataFrame(fre_matrix.toarray())  # 全词库 词频 向量矩阵
+    #freWordVector_df = pd.DataFrame(fre_matrix.toarray())  # 全词库 词频 向量矩阵
     tfidf_df = pd.DataFrame(tfidf.toarray())  # tfidf值矩阵
     #print(tfidf_df)
     # print freWordVector_df
@@ -107,7 +110,8 @@ def tfidf_mat(words_list,filename_list,category_list):
     tfidf_df_1 = MaxMinNormalization(freWord_tfsx_df)
     tfidf_df_1.columns = df_columns
     le = preprocessing.LabelEncoder()  # 评分到0到n_class-1
-    tfidf_df_1['label'] = le.fit_transform(category_list) #类别和数字的映射
+    tfidf_df_1['label'] = le.fit_transform(category_list)
+    print(tfidf_df_1['label'])#类别和数字的映射
     tfidf_df_1.index = filename_list
     print(tfidf_df_1)
     return tfidf_df_1,df_columns
@@ -175,3 +179,28 @@ if clf.predict(ch2_sx_np) == [4]:
     print('此文本预测结果为：环保')
 if clf.predict(ch2_sx_np) == [5]:
     print('此文本预测结果为：金融')
+
+
+if __name__ in '__main__':
+
+    for categoryName in category:
+        if (categoryName == '.DS_Store'): continue
+        categoryPath = os.path.join(rootpath, categoryName)  # 这个类别的路径
+        filesList = os.listdir(categoryPath)  # 这个类别内所有文件列表
+        # 循环对每个文件分词
+        for filename in filesList:
+            if (filename == '.DS_Store'): continue
+            starttime = time.clock()
+            contents = pd.read_table(categoryPath + '/' + filename, header=None, encoding='utf-8')
+            context = contents[1]
+            context = context.dropna()
+            for i in range(len(context)):
+                wordProcessed = filewordProcess(context[i])  # 内容分词成列表
+                # 暂时不做#filenameWordProcessed = fileWordProcess(filename) # 文件名分词，单独做特征
+                #         words_list.append((wordProcessed,categoryName,filename)) # 训练集格式：[(当前文件内词列表，类别，文件名)]
+                words_list.append(wordProcessed)
+                filename_list.append(filename)
+                category_list.append(categoryName)
+                endtime = time.clock();
+                print('类别:%s >>>>文件:%s >>>>导入用时: %.3f' % (categoryName, filename, endtime - starttime))
+
