@@ -1,5 +1,6 @@
 # -*- coding: utf-8 -*-
 # author@datassis.com
+# Pytho3.2
 import codecs
 from sklearn.feature_extraction.text import TfidfTransformer
 from sklearn.naive_bayes import MultinomialNB
