@@ -29,6 +29,8 @@ words_list = []
 all_words = {}
 rootpath = 'D:\文本分类\训练数据'
 category = os.listdir(rootpath)
+pre_text = codecs.open('D:\文本分类\esttext.txt', 'r', encoding='utf-8')
+pre_text = pre_text.read()
 
 
 #======读取编码为utf8的本文文件=====
@@ -97,13 +99,12 @@ def tfidf_mat(words_list,filename_list,category_list):
     # print freWordVector_df
     # tf-idf 筛选
     tfidf_sx_featuresindex = tfidf_df.sum(axis=0).sort_values(ascending=False)[:10000].index
-    freWord_tfsx_df = freWordVector_df.ix[:, tfidf_sx_featuresindex]  # tfidf法筛选后的词向量矩阵
+    freWord_tfsx_df = tfidf_df.ix[:, tfidf_sx_featuresindex]  # tfidf法筛选后的idf矩阵
     df_columns = pd.Series(feature_names)[tfidf_sx_featuresindex]
     print(df_columns)
     #print(freWord_tfsx_df)
 
     tfidf_df_1 = MaxMinNormalization(freWord_tfsx_df)
-    #print(tfidf_df_1)
     tfidf_df_1.columns = df_columns
     le = preprocessing.LabelEncoder()  # 评分到0到n_class-1
     tfidf_df_1['label'] = le.fit_transform(category_list) #类别和数字的映射
@@ -115,7 +116,6 @@ def tfidf_mat(words_list,filename_list,category_list):
 def Chi_square_test(tfidf_df_1):
     ch2 = SelectKBest(chi2, k=10000)
     nolabel_feature = [x for x in tfidf_df_1.columns if x not in ['label']]
-    print(nolabel_feature)
     ch2_sx_np = ch2.fit_transform(tfidf_df_1[nolabel_feature],tfidf_df_1['label'])
     label_np = np.array(tfidf_df_1['label'])
     X = ch2_sx_np
@@ -127,33 +127,51 @@ def Chi_square_test(tfidf_df_1):
         y_train,y_test = y[train_index],y[test_index]
         clf = MultinomialNB().fit(X_train, y_train)
         y_pre[test_index] = clf.predict(X_test)
-        joblib.dump(clf, "D:\文本分类\训练数据\\train_model.m", comress=3)
+        joblib.dump(clf, "D:\文本分类\\train_model.m")
     print('准确率为 %.6f' % (np.mean(y_pre == y)))
     return y,y_pre,nolabel_feature
 
 tfidf_df_1,df_columns = tfidf_mat(words_list,filename_list,category_list)
 y,y_pre,nolabel_feature = Chi_square_test(tfidf_df_1)
 
-
-
-def tfidf_mat_pre(words_list,df_columns):
-    freWord = CountVectorizer(stop_words='english')
-    transformer = TfidfTransformer(use_idf=True)
-    fre_matrix = freWord.fit_transform(words_list)
-    tfidf = transformer.fit_transform(fre_matrix)
-    feature_names = freWord.get_feature_names()           #
-    tfidf_df = pd.DataFrame(np.zeros((1,10000)),index=['未知'],columns=range(10000))
-    tfidf_df.columns=df_columns
-    le = preprocessing.LabelEncoder()
-    tfidf_df['label'] = le.fit_transform(['未知'])
-    for strr in feature_names:
-        for i in range(len(tfidf_df.columns)):
-            if strr == tfidf_df.columns[i]:
-                tfidf_df[tfidf_df.columns[i]] = 1
-    ch2 = SelectKBest(chi2, k=15000)
-    nolabel_feature = [x for x in tfidf_df.columns if x not in ['label']]
-    ch2_sx_np = ch2.fit_transform(tfidf_df[nolabel_feature],tfidf_df['label'])
+def tfidf_mat_pre(pre_text):
+    words_list_pre = words_list
+    filename_list_pre = filename_list
+    category_list_pre = category_list
+    pre_text = filewordProcess(pre_text)
+    words_list_pre.append(pre_text)
+    pre_file_name = '预测样本.txt'
+    filename_list_pre.append(pre_file_name)
+    pre_category_name = 'Unknown'
+    category_list_pre.append(pre_category_name)
+    tfidf_df_1_pre,df_columns_pre = tfidf_mat(words_list_pre,filename_list_pre,category_list_pre)
+    #print(tfidf_df_1,df_columns)
+    tfidf_df_v = tfidf_df_1_pre.iloc[-1:]
+    ch2 = SelectKBest(chi2, k=10000)
+    nolabel_feature_pre = [x for x in tfidf_df_v.columns if x not in ['label']]
+    miss_feature = [l for l in nolabel_feature if l not in nolabel_feature_pre]
+    print('丢失特征：%s >>>>>丢失个数:%s'% (miss_feature,len(miss_feature)))
+    aa = {'预测样本.txt':np.zeros(len(miss_feature))}
+    tfidf_df_v = tfidf_df_v.join(pd.DataFrame(aa.values(),columns=miss_feature,index=aa.keys()))
+    for i in range(len(nolabel_feature_pre)):
+        if nolabel_feature_pre[i] in nolabel_feature == False:
+            tfidf_df_v = tfidf_df_v.drop(nolabel_feature_pre[i])
+        else:
+            tfidf_df_v = tfidf_df_v
+    ch2_sx_np = ch2.fit_transform(tfidf_df_v[nolabel_feature_pre], tfidf_df_v['label'])
     return ch2_sx_np
 
-
-
+ch2_sx_np = tfidf_mat_pre(pre_text)
+clf = joblib.load("D:\文本分类\\train_model.m")
+if clf.predict(ch2_sx_np) == [0]:
+    print('此文本预测结果为：农业')
+if clf.predict(ch2_sx_np) == [1]:
+    print('此文本预测结果为：基金理财')
+if clf.predict(ch2_sx_np) == [2]:
+    print('此文本预测结果为：房产')
+if clf.predict(ch2_sx_np) == [3]:
+    print('此文本预测结果为：教育')
+if clf.predict(ch2_sx_np) == [4]:
+    print('此文本预测结果为：环保')
+if clf.predict(ch2_sx_np) == [5]:
+    print('此文本预测结果为：金融')
