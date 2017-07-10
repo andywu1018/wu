@@ -11,6 +11,7 @@ from sklearn.cross_validation import StratifiedKFold
 from sklearn.ensemble import  RandomForestClassifier
 from sklearn.feature_selection import SelectKBest, chi2
 import pandas as pd
+import pickle
 import jieba
 import re
 import string
@@ -37,7 +38,7 @@ def readtext(path):
     content = text.read()
     text.close()
     return content
-stopwords = readtext('D:\文本分类\stop_words.txt')
+stopwords = readtext('D:\文本分类\chinese_stopword.txt')
 
 #======分词========
 
@@ -64,7 +65,10 @@ def MaxMinNormalization(x):
             x_v[i][j] = (x_v[i][j]-Min[i])/Cha[i]
     return  x_v
 
-
+def write_to_txt(path,contents):
+    f = codecs.open(path,'w','utf8')
+    f.write(contents)
+    f.close()
 
 # 创建词向量矩阵，创建tfidf值矩阵
 def tfidf_mat(words_list,filename_list,category_list):
@@ -143,75 +147,46 @@ def tfidf_mat_pre(pre_text):
     ch2_sx_np = ch2.fit_transform(tfidf_df_v[nolabel_feature_pre], tfidf_df_v['label'])
     return ch2_sx_np
 
-for categoryName in category:
-    if (categoryName == '.DS_Store'): continue
-    categoryPath = os.path.join(rootpath, categoryName)  # 这个类别的路径
-    filesList = os.listdir(categoryPath)  # 这个类别内所有文件列表
-    # 循环对每个文件分词
-    for filename in filesList:
-        if (filename == '.DS_Store'): continue
-        starttime = time.clock()
-        contents = pd.read_table(categoryPath + '/' + filename, header=None, encoding='utf-8')
-        context = contents[1]
-        context = context.dropna()
-        for i in range(len(context)):
-            wordProcessed = filewordProcess(context[i])  # 内容分词成列表
-            # 暂时不做#filenameWordProcessed = fileWordProcess(filename) # 文件名分词，单独做特征
-            #         words_list.append((wordProcessed,categoryName,filename)) # 训练集格式：[(当前文件内词列表，类别，文件名)]
-            words_list.append(wordProcessed)
-            filename_list.append(filename)
-            category_list.append(categoryName)
-            endtime = time.clock();
-            print('类别:%s >>>>文件:%s >>>>导入用时: %.3f' % (categoryName, filename, endtime - starttime))
+if __name__ in '__main__':
+    for categoryName in category:
+        if (categoryName == '.DS_Store'): continue
+        categoryPath = os.path.join(rootpath, categoryName)  # 这个类别的路径
+        filesList = os.listdir(categoryPath)  # 这个类别内所有文件列表
+        # 循环对每个文件分词
+        for filename in filesList:
+            if (filename == '.DS_Store'): continue
+            starttime = time.clock()
+            contents = pd.read_table(categoryPath + '/' + filename, header=None, encoding='utf-8')
+            context = contents[1]
+            context = context.dropna()
+            for i in range(len(context)):
+                wordProcessed = filewordProcess(context[i])  # 内容分词成列表
+                # 暂时不做#filenameWordProcessed = fileWordProcess(filename) # 文件名分词，单独做特征
+                #         words_list.append((wordProcessed,categoryName,filename)) # 训练集格式：[(当前文件内词列表，类别，文件名)]
+                words_list.append(wordProcessed)
+                filename_list.append(filename)
+                category_list.append(categoryName)
+                endtime = time.clock();
+                print('类别:%s >>>>文件:%s >>>>导入用时: %.3f' % (categoryName, filename, endtime - starttime))
 
+    tfidf_df_1, df_columns = tfidf_mat(words_list, filename_list, category_list);
+    y, y_pre, nolabel_feature = Chi_square_test(tfidf_df_1)
 
+    # =======================列表，数据，本文本地化==============
+    write_to_txt('D:\文本分类\word_list_.txt', str(words_list))
+    write_to_txt('D:\文本分类\\filename_list_.txt', str(filename_list))
+    write_to_txt('D:\文本分类\category_list_.txt', str(category_list))
+    write_to_txt('D:\文本分类\\features_list_.txt', str(nolabel_feature))
 
-tfidf_df_1, df_columns = tfidf_mat(words_list, filename_list, category_list);
-y, y_pre, nolabel_feature = Chi_square_test(tfidf_df_1)
-
-
-print('----------------------->开始测试<------------------------')
-ch2_sx_np = tfidf_mat_pre(pre_text)
-clf = joblib.load("D:\文本分类\\train_model.m")
-if clf.predict(ch2_sx_np) == [0]:
-        print('此文本预测结果为：仓储物流')
-if clf.predict(ch2_sx_np) == [1]:
-        print('此文本预测结果为：信贷融资')
-if clf.predict(ch2_sx_np) == [2]:
-        print('此文本预测结果为：农业服务业')
-if clf.predict(ch2_sx_np) == [3]:
-        print('此文本预测结果为：医疗健康')
-if clf.predict(ch2_sx_np) == [4]:
-        print('此文本预测结果为：大数据')
-if clf.predict(ch2_sx_np) == [5]:
-        print('此文本预测结果为：扶贫')
-if clf.predict(ch2_sx_np) == [6]:
-        print('此文本预测结果为：政策')
-if clf.predict(ch2_sx_np) == [7]:
-        print('此文本预测结果为：新能源')
-if clf.predict(ch2_sx_np) == [8]:
-        print('此文本预测结果为：星创天地')
-if clf.predict(ch2_sx_np) == [9]:
-        print('此文本预测结果为：林业服务业')
-if clf.predict(ch2_sx_np) == [10]:
-        print('此文本预测结果为：法规')
-if clf.predict(ch2_sx_np) == [11]:
-        print('此文本预测结果为：渔业服务业')
-if clf.predict(ch2_sx_np) == [12]:
-        print('此文本预测结果为：电子商务')
-if clf.predict(ch2_sx_np) == [13]:
-        print('此文本预测结果为：畜牧服务业')
-if clf.predict(ch2_sx_np) == [14]:
-        print('此文本预测结果为：社交')
-if clf.predict(ch2_sx_np) == [15]:
-        print('此文本预测结果为：科技成果')
-if clf.predict(ch2_sx_np) == [16]:
-        print('此文本预测结果为：科技特派员')
-if clf.predict(ch2_sx_np) == [17]:
-        print('此文本预测结果为：证券投资')
-if clf.predict(ch2_sx_np) == [18]:
-        print('此文本预测结果为：财政公开')
-if clf.predict(ch2_sx_np) == [19]:
-        print('此文本预测结果为：金融咨讯')
-
-print('----------------------->Start writing to MySQL<------------------------')
+    f1 = open('D:\pickle\wordlist.txt', 'wb')
+    pickle.dump(words_list, f1)
+    f1.close()
+    f2 = open('D:\pickle\\filenamelist.txt', 'wb')
+    pickle.dump(filename_list, f2)
+    f2.close()
+    f3 = open('D:\pickle\categorylist.txt', 'wb')
+    pickle.dump(category_list, f3)
+    f3.close()
+    f4 = open('D:\pickle\\feature.txt', 'wb')
+    pickle.dump(nolabel_feature, f4)
+    f4.close()
