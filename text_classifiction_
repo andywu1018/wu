@@ -107,14 +107,15 @@ def Chi_square_test(tfidf_df_1):
     label_np = np.array(tfidf_df_1['label'])
     X = ch2_sx_np
     y = label_np
-    skf = StratifiedKFold(y,n_folds=10)
+    skf = StratifiedKFold(y,n_folds=5)
     y_pre = y.copy()
     for train_index,test_index in skf:
         X_train,X_test = X[train_index],X[test_index]
         y_train,y_test = y[train_index],y[test_index]
-        clf = RandomForestClassifier().fit(X_train, y_train)
-        y_pre[test_index] = clf.predict(X_test)
-        joblib.dump(clf, "D:\文本分类\\train_model.m")
+        clf1 = RandomForestClassifier().fit(X_train, y_train)
+        y_pre[test_index] = clf1.predict(X_test)
+    clf = RandomForestClassifier().fit(X,y)
+    joblib.dump(clf, "D:\文本分类\\train_model.m")
     print('准确率为 %.6f' % (np.mean(y_pre == y)))
     return y,y_pre,nolabel_feature
 
