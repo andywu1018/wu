@@ -1,0 +1,97 @@
+from ttexr import  tfidf_mat
+from ttexr import filewordProcess
+import  ttexr
+from ttexr import Chi_square_test
+from sklearn.feature_selection import SelectKBest,chi2
+import numpy as np
+import pandas as pd
+import pickle
+import  codecs
+from sklearn.externals import joblib
+
+
+def tfidf_mat_pre(pre_text):
+    words_list_pre = words_list
+    filename_list_pre = filename_list
+    category_list_pre = category_list
+    pre_text = filewordProcess(pre_text)
+    words_list_pre.append(pre_text)
+    pre_file_name = '预测样本.txt'
+    filename_list_pre.append(pre_file_name)
+    pre_category_name = 'Unknown'
+    category_list_pre.append(pre_category_name)
+    tfidf_df_1_pre,df_columns_pre = tfidf_mat(words_list_pre,filename_list_pre,category_list_pre)
+    #print(tfidf_df_1,df_columns)
+    tfidf_df_v = tfidf_df_1_pre.iloc[-1:]
+    ch2 = SelectKBest(chi2, k=10000)
+    nolabel_feature_pre = [x for x in tfidf_df_v.columns if x not in ['label']]
+    miss_feature = [l for l in nolabel_feature if l not in nolabel_feature_pre]
+    print('丢失特征：%s >>>>>丢失个数:%s'% (miss_feature,len(miss_feature)))
+    aa = {'预测样本.txt':np.zeros(len(miss_feature))}
+    tfidf_df_v = tfidf_df_v.join(pd.DataFrame(aa.values(),columns=miss_feature,index=aa.keys()))
+    for i in range(len(nolabel_feature_pre)):
+        if nolabel_feature_pre[i] in nolabel_feature == False:
+            tfidf_df_v = tfidf_df_v.drop(nolabel_feature_pre[i])
+        else:
+            tfidf_df_v = tfidf_df_v
+    ch2_sx_np = ch2.fit_transform(tfidf_df_v[nolabel_feature_pre], tfidf_df_v['label'])
+    return ch2_sx_np
+
+if __name__ in '__main__':
+    f1 = open('D:\pickle\wordlist.txt', 'rb')
+    words_list = pickle.load(f1)
+    f1.close()
+    f2 = open('D:\pickle\\filenamelist.txt', 'rb')
+    filename_list = pickle.load(f2)
+    f2.close()
+    f3 = open('D:\pickle\categorylist.txt', 'rb')
+    category_list = pickle.load(f3)
+    f3.close()
+    f4 = open('D:\pickle\\feature.txt', 'rb')
+    nolabel_feature = pickle.load(f4)
+    f4.close()
+    pre_text = codecs.open('D:\文本分类\\textfile.txt', 'r', encoding='utf-8')
+    pre_text = pre_text.read()
+    print('----------------------->开始测试<------------------------')
+    ch2_sx_np = tfidf_mat_pre(pre_text)
+    clf = joblib.load("D:\文本分类\\train_model.m")
+    if clf.predict(ch2_sx_np) == [0]:
+        print('此文本预测结果为：仓储物流')
+    if clf.predict(ch2_sx_np) == [1]:
+        print('此文本预测结果为：信贷融资')
+    if clf.predict(ch2_sx_np) == [2]:
+        print('此文本预测结果为：农业服务业')
+    if clf.predict(ch2_sx_np) == [3]:
+        print('此文本预测结果为：医疗健康')
+    if clf.predict(ch2_sx_np) == [4]:
+        print('此文本预测结果为：大数据')
+    if clf.predict(ch2_sx_np) == [5]:
+        print('此文本预测结果为：扶贫')
+    if clf.predict(ch2_sx_np) == [6]:
+        print('此文本预测结果为：政策')
+    if clf.predict(ch2_sx_np) == [7]:
+        print('此文本预测结果为：新能源')
+    if clf.predict(ch2_sx_np) == [8]:
+        print('此文本预测结果为：星创天地')
+    if clf.predict(ch2_sx_np) == [9]:
+        print('此文本预测结果为：林业服务业')
+    if clf.predict(ch2_sx_np) == [10]:
+        print('此文本预测结果为：法规')
+    if clf.predict(ch2_sx_np) == [11]:
+        print('此文本预测结果为：渔业服务业')
+    if clf.predict(ch2_sx_np) == [12]:
+        print('此文本预测结果为：电子商务')
+    if clf.predict(ch2_sx_np) == [13]:
+        print('此文本预测结果为：畜牧服务业')
+    if clf.predict(ch2_sx_np) == [14]:
+        print('此文本预测结果为：社交')
+    if clf.predict(ch2_sx_np) == [15]:
+        print('此文本预测结果为：科技成果')
+    if clf.predict(ch2_sx_np) == [16]:
+        print('此文本预测结果为：科技特派员')
+    if clf.predict(ch2_sx_np) == [17]:
+        print('此文本预测结果为：证券投资')
+    if clf.predict(ch2_sx_np) == [18]:
+        print('此文本预测结果为：财政公开')
+    if clf.predict(ch2_sx_np) == [19]:
+        print('此文本预测结果为：金融咨讯')
