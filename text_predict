@@ -1,7 +1,5 @@
 from ttexr import  tfidf_mat
 from ttexr import filewordProcess
-import  ttexr
-from ttexr import Chi_square_test
 from sklearn.feature_selection import SelectKBest,chi2
 import numpy as np
 import pandas as pd
@@ -37,6 +35,20 @@ def tfidf_mat_pre(pre_text):
     ch2_sx_np = ch2.fit_transform(tfidf_df_v[nolabel_feature_pre], tfidf_df_v['label'])
     return ch2_sx_np
 
+def top3(p):
+    top_index=np.zeros(3)
+    top_prob=np.zeros(3)
+    top3_list = []
+    for i in range(3):
+        top_index[i] = p.argsort()[-i-1]
+    top_index = top_index.astype(int)
+    for j in range(3):
+        top_prob[j] = p[top_index[j]]
+#    top3_list.append(top_index)
+#    top3_list.append(top_prob)
+    return top_index,top_prob
+
+
 if __name__ in '__main__':
     f1 = open('D:\pickle\wordlist.txt', 'rb')
     words_list = pickle.load(f1)
@@ -50,49 +62,28 @@ if __name__ in '__main__':
     f4 = open('D:\pickle\\feature.txt', 'rb')
     nolabel_feature = pickle.load(f4)
     f4.close()
-    pre_text = codecs.open('D:\文本分类\\esttext.txt', 'r', encoding='utf-8')
+    pre_text = codecs.open('D:\文本分类\\新能源.txt', 'r', encoding='utf-8')
     pre_text = pre_text.read()
+    category_list_v = np.unique(category_list)
     print('----------------------->开始测试<------------------------')
+    print(category_list_v)
     ch2_sx_np = tfidf_mat_pre(pre_text)
     clf = joblib.load("D:\文本分类\\train_model.m")
-    print(clf.predict_proba(ch2_sx_np))
-    if clf.predict(ch2_sx_np) == [0]:
-        print('此文本预测结果为：仓储物流')
-    if clf.predict(ch2_sx_np) == [1]:
-        print('此文本预测结果为：信贷融资')
-    if clf.predict(ch2_sx_np) == [2]:
-        print('此文本预测结果为：农业服务业')
-    if clf.predict(ch2_sx_np) == [3]:
-        print('此文本预测结果为：医疗健康')
-    if clf.predict(ch2_sx_np) == [4]:
-        print('此文本预测结果为：大数据')
-    if clf.predict(ch2_sx_np) == [5]:
-        print('此文本预测结果为：扶贫')
-    if clf.predict(ch2_sx_np) == [6]:
-        print('此文本预测结果为：政策')
-    if clf.predict(ch2_sx_np) == [7]:
-        print('此文本预测结果为：新能源')
-    if clf.predict(ch2_sx_np) == [8]:
-        print('此文本预测结果为：星创天地')
-    if clf.predict(ch2_sx_np) == [9]:
-        print('此文本预测结果为：林业服务业')
-    if clf.predict(ch2_sx_np) == [10]:
-        print('此文本预测结果为：法规')
-    if clf.predict(ch2_sx_np) == [11]:
-        print('此文本预测结果为：渔业服务业')
-    if clf.predict(ch2_sx_np) == [12]:
-        print('此文本预测结果为：电子商务')
-    if clf.predict(ch2_sx_np) == [13]:
-        print('此文本预测结果为：畜牧服务业')
-    if clf.predict(ch2_sx_np) == [14]:
-        print('此文本预测结果为：社交')
-    if clf.predict(ch2_sx_np) == [15]:
-        print('此文本预测结果为：科技成果')
-    if clf.predict(ch2_sx_np) == [16]:
-        print('此文本预测结果为：科技特派员')
-    if clf.predict(ch2_sx_np) == [17]:
-        print('此文本预测结果为：证券投资')
-    if clf.predict(ch2_sx_np) == [18]:
-        print('此文本预测结果为：财政公开')
-    if clf.predict(ch2_sx_np) == [19]:
-        print('此文本预测结果为：金融咨讯')
+    p = clf.predict_proba(ch2_sx_np).flatten()
+    #print(p)
+    top_index ,top_prob = top3(p)
+    #print(top_index,top_prob)
+    first = top_prob[0]
+    second = top_prob[1]
+    third = top_prob[2]
+    if first < 0.1:
+        classifier = '无法判别'
+    else:
+        if first/second >=2:
+            classifier = '%s>>概率: %.3f'%(category_list_v[top_index[0]],top_prob[0])
+        else:
+            if first/third >=2:
+                classifier = '%s>>概率: %.3f,%s>>概率: %.3f'%(category_list_v[top_index[0]],top_prob[0],category_list_v[top_index[1]],top_prob[1])
+            else:
+                classifier = '%s>>概率: %.3f,%s>>概率: %.3f,%s>>概率: %.3f'%(category_list_v[top_index[0]],top_prob[0],category_list_v[top_index[1]],top_prob[1],category_list_v[top_index[2]],top_prob[2])
+    print(classifier)
