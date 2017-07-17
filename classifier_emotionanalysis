@@ -1,0 +1,442 @@
+from ttexr import  tfidf_mat
+from ttexr import filewordProcess
+from sklearn.feature_selection import SelectKBest,chi2
+import numpy as np
+import pandas as pd
+import jieba
+import pickle
+import pymysql
+from collections import Counter
+import ttexr
+import  codecs
+import time
+from sklearn.externals import joblib
+
+def tfidf_mat_pre(pre_text):
+    words_list_pre = words_list
+    filename_list_pre = filename_list
+    category_list_pre = category_list
+    pre_text = filewordProcess(pre_text)
+    words_list_pre.append(pre_text)
+    pre_file_name = '预测样本.txt'
+    filename_list_pre.append(pre_file_name)
+    pre_category_name = 'Unknown'
+    category_list_pre.append(pre_category_name)
+    tfidf_df_1_pre,df_columns_pre = tfidf_mat(words_list_pre,filename_list_pre,category_list_pre)
+    tfidf_df_v = tfidf_df_1_pre.iloc[-1:]
+    #print(tfidf_df_v, df_columns_pre)
+    ch2 = SelectKBest(chi2, k=10000)
+    nolabel_feature_pre = [x for x in tfidf_df_v.columns if x not in ['label']]
+    miss_feature = [l for l in nolabel_feature if l not in nolabel_feature_pre]
+    print('丢失特征：%s >>>>>丢失个数:%s'% (miss_feature,len(miss_feature)))
+    aa = {'预测样本.txt':np.zeros(len(miss_feature))}
+    tfidf_df_v = tfidf_df_v.join(pd.DataFrame(aa.values(),columns=miss_feature,index=aa.keys()))
+    for i in range(len(nolabel_feature_pre)):
+        if nolabel_feature_pre[i] in nolabel_feature == False:
+            tfidf_df_v = tfidf_df_v.drop(nolabel_feature_pre[i])
+        else:
+            tfidf_df_v = tfidf_df_v
+    ch2_sx_np = ch2.fit_transform(tfidf_df_v[nolabel_feature_pre], tfidf_df_v['label'])
+    return ch2_sx_np
+
+def classifier_pre(heading,content):
+    #count=0
+    clf = joblib.load("D:\文本分类\\train_model.m")
+    heading = filewordProcess(heading)
+    heading = heading.split(sep=' ')
+    classifier = []
+    details = '基于标题分类'
+    for i in range(len(heading)):
+        if heading[i] in ['养殖','畜牧','禽','猪','牛','羊','畜禽养殖','动物防疫','畜牧兽医局','饲料']:
+            classifier.append('牧业')
+        elif heading[i] in ['工业','装备制造','智能化','重点工程','信息化','技术产业','转型','零部件','金属','产品']:
+            classifier.append('建造业')
+        elif heading[i] in ['工程','危房','混凝土','施工现场','幕墙','工程造价','装饰','装修','施工','房地产','建筑业']:
+            classifier.append('建筑业')
+        elif heading[i] in ['电商平台','线上','电子商务','淘宝','微商','京东','天猫','阿里巴巴','o2o','物流','电商']:
+            classifier.append('电商')
+        elif heading[i] in ['贫困','脱贫','惠民','帮扶','致富','扶持','低保','困难群众','返贫','增收']:
+            classifier.append('扶贫')
+        elif heading[i] in ['贸易','贷款','税收','证券','股票','财政','融资','投资','货币','银行','金融']:
+            classifier.append('金融')
+        elif heading[i] in ['分析','数据','云计算','互联网+','数字化','信息化','物联网','智能化','人工智能','数据资源']:
+            classifier.append('大数据')
+        elif heading[i] in ['科技扶贫','指导','科技先行','科技人员','科技服务','科技帮扶','人才','派驻','特派员','科技信息服务']:
+            classifier.append('科技特派员')
+        elif heading[i] in ['转化','创新','突破','高新技术','科技型','专业化','孵化','技术成果','技术产权','专利信息']:
+            classifier.append('科技成果')
+        elif heading[i] in ['节能','减排','污染','排放','环境质量','生态环境','废物','环境监测','新能源','自然']:
+            classifier.append('环保')
+        elif heading[i] in ['农药','庄稼','谷物','种植','果树','节气','耕种','栽培','农机','肥料']:
+            classifier.append('农业')
+        elif heading[i] in ['林场','野生','封禁','防火','森林','乔木','生态保护','造林','砍伐','森林火灾','林业']:
+            classifier.append('林业')
+        elif heading[i] in ['渔船','捕捞','海鲜','水产养殖','禁渔','渔网','水产加工品','远洋','禁渔期']:
+            classifier.append('渔业')
+        elif heading[i] in ['批发','零售','外卖','超市','小商品','成本增加','自有品牌','小卖部']:
+            classifier.append('批发零售')
+        elif heading[i] in ['交通','运输','铁路','建设','客运','航运','高铁','公路','快递','通车','道路','全线通车','隧道','拥堵']:
+            classifier.append('交通运输')
+        elif heading[i] in ['仓库','货物','集装箱','货垛','库存','动态管理','库房','堆码']:
+            classifier.append('仓储')
+        elif heading[i] in ['食品安全','乳品','健康状态','重金属','维生素','转基因','添加剂','食品包装','微生物','食品检测']:
+            classifier.append('食品安全')
+        elif heading[i] in ['培训','学校''高考','高校','考试','教学大纲','成人教育','学前教育','大学','教职员','招生','考生']:
+            classifier.append('教育')
+        elif heading[i] in ['主持','会议','政策','召开','开展','制度','群众','干部','作风','反腐','通告','调研']:
+            classifier.append('会议活动')
+        elif heading[i] in ['医患关系','医疗纠纷','公立医院','医疗保障','磁共振','癌症','内科','药店','救护车','药品']:
+            classifier.append('医疗')
+    classifier = ','.join(np.unique(classifier))
+    while(classifier ==''):
+        print('标题分类：未知>>>>>进行内容分类>>>>>>')
+        ch2_sx_np = tfidf_mat_pre(content)
+        p = clf.predict_proba(ch2_sx_np).flatten()
+        # print(p)
+        top_index, top_prob = top3(p)
+        # print(top_index,top_prob)
+        first = top_prob[0]
+        second = top_prob[1]
+        third = top_prob[2]
+        if first < 0.2:
+            classifier = '其他'
+            details = '其他'
+        else:
+            if first / second >= 2:
+                classifier = '%s' % (category_list_v[top_index[0]])
+                details = '%s>>概率: %.3f' % (category_list_v[top_index[0]], top_prob[0])
+
+            else:
+                if first / third >= 2:
+                    classifier = '%s,%s' % (category_list_v[top_index[0]], category_list_v[top_index[1]])
+                    details = '%s>>概率: %.3f,%s>>概率: %.3f' % (
+                            category_list_v[top_index[0]], top_prob[0], category_list_v[top_index[1]], top_prob[1])
+                else:
+                    classifier = '%s,%s,%s' % (category_list_v[top_index[0]], category_list_v[top_index[1]],
+                                                   category_list_v[top_index[2]])
+                    details = '%s>>概率: %.3f,%s>>概率: %.3f,%s>>概率: %.3f' % (
+                            category_list_v[top_index[0]], top_prob[0], category_list_v[top_index[1]], top_prob[1],
+                            category_list_v[top_index[2]], top_prob[2])
+    print(classifier, details)
+    return classifier,details
+
+
+def encode_data(data):
+    try:
+        result=data.encode('utf-8')
+    except:
+        result=str(data)
+    return result
+
+
+# ===============================去停用词===================================
+def del_stopwords(seg_sent):
+    stopwords_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\stop_words.txt', 'r', encoding='utf8')
+    stopwords = stopwords_.read()
+    stopwords_.close()
+    new_sent = []
+    for word in seg_sent:
+        if word in stopwords:
+            continue
+        else:
+            new_sent.append(word)
+    return new_sent
+def segmentation(sentence):
+    seg_list = jieba.cut(sentence)
+    seg_result = []
+    for w in seg_list:
+        seg_result.append(w)
+    return seg_result
+
+
+# ==============================分句===================================
+def cut_sentence(words):
+    #	words = words.decode('utf8')
+    start = 0
+    i = 0
+    token = 'meaningless'
+    sents = []
+    punt_list = (',.!?;~，。！？；～… ')
+    for word in words:
+        if word not in punt_list:                    # 如果不是标点符号
+            i += 1
+            token = list(words[start:i + 2]).pop()  # 返回列表的最后一项
+        elif word in punt_list and token in punt_list:               # 处理省略号（普通标点是1个，而省略号有一串）
+            i += 1
+            token = list(words[start:i + 2]).pop()
+        else:
+            sents.append(words[start:i + 1])  # 断句
+            start = i + 1
+            i += 1
+    if start < len(words):  # 处理最后的部分
+        sents.append(words[start:])
+    return sents
+
+
+# ==============================程度副词匹配=====================
+def match(word, sentiment_value):
+    if word in mostdict:
+        sentiment_value *= 2.0
+    elif word in verydict:
+        sentiment_value *= 1.75
+    elif word in moredict:
+        sentiment_value *= 1.5
+    elif word in ishdict:
+        sentiment_value *= 1.2
+    elif word in insufficientdict:
+        sentiment_value *= 0.5
+    elif word in inversedict:
+        sentiment_value *= -1
+    return sentiment_value
+
+
+# =================情感得分的最后处理，防止出现负数===================
+def transform_to_positive_num(poscount, negcount):
+    pos_count = 0
+    neg_count = 0
+    if poscount < 0 and negcount >= 0:
+        neg_count += negcount - poscount
+        pos_count = 0
+    elif negcount < 0 and poscount >= 0:
+        pos_count = poscount - negcount
+        neg_count = 0
+    elif poscount < 0 and negcount < 0:
+        neg_count = -poscount
+        pos_count = -negcount
+    else:
+        pos_count = poscount
+        neg_count = negcount
+    return (pos_count, neg_count)
+
+
+# =====================求单条新闻的情感倾向总得分===================
+def single_review_sentiment_score(content):
+    single_review_senti_score = []
+    possen = []
+    negsen = []
+    cuted_review = cut_sentence(content)
+    for sent in cuted_review:
+        seg_sent = segmentation(sent)  # 分词
+        seg_sent = del_stopwords(seg_sent)[:]
+        i = 0  # 记录扫描到的词的位置
+        s = 0  # 记录情感词的位置
+        poscount = 0  # 记录该分句中的积极情感得分
+        negcount = 0  # 记录该分句中的消极情感得分
+        for word in seg_sent:  # 逐词分析
+            if word in posdict:  # 如果是积极情感词
+                poscount += posemotion[posdict.index(word)]  # 积极得分+1
+                possen.append(possentiments[posdict.index(word)])
+                for w in seg_sent[s:i]:
+                    poscount = match(w, poscount)
+                s = i + 1  # 记录情感词的位置变化
+
+            elif word in negdict:  # 如果是消极情感词
+                negcount += negemotion[negdict.index(word)]
+                negsen.append(negsentiments[negdict.index(word)])
+                for w in seg_sent[s:i]:
+                    negcount = match(w, negcount)
+                s = i + 1
+            elif word == "！":  # or word == "!".decode('utf-8') //不知道这样写干嘛用
+                for w2 in seg_sent[::-1]:  # 倒序扫描感叹号前的情感词，发现后权值+2，然后退出循环
+                    if w2 in posdict:  # ！前的情感词双倍效果
+                        poscount += 2 * posemotion[posdict.index(w2)]
+                        break
+                    elif w2 in negdict:
+                        negcount += 2 * negemotion[negdict.index(w2)]
+                        break
+            i += 1
+        single_review_senti_score.append(transform_to_positive_num(poscount, negcount))  # 对得分做最后处理
+    pos_result, neg_result = 0, 0  # 分别记录积极情感总得分和消极情感总得分
+    for res1, res2 in single_review_senti_score:  # 每个分句循环累加
+        pos_result += res1
+        neg_result += res2
+    posC = Counter(possen)
+    negC = Counter(negsen)
+    happy = posC['PA'] + posC['PE']
+    fine = posC['PD'] + posC['PH'] + posC['PG'] + posC['PB'] + posC['PH']
+    fury = negC['NA']
+    wane = negC['NB'] + negC['NJ'] + negC['NH'] + negC['PF']
+    fear = negC['NI'] + negC['NC'] + negC['NG']
+    vice = negC['NE'] + negC['ND'] + negC['NN'] + negC['NK'] + negC['NL']
+    shock = negC['PC']
+    result = pos_result - neg_result  # 该条新闻情感的最终得分
+    result = round(result, 1)
+
+    print (result)
+    return result  # ,pos_result,neg_result,happy,fine,fury,wane,fear,vice,shock
+
+
+def classifier_insertSql(content,heading,j):
+    classifier,details = classifier_pre(heading,content)
+    emotion_result = single_review_sentiment_score(content)
+    try:
+        j = j+ID_last+1
+        #data.ix[j, '分类结果'] = classifier
+        #data.ix[j, '详细结果'] = details
+        # print 'get clasfier'
+        title = data.ix[j, '标题']
+        bankuai = data.ix[j, '板块']
+        comment = data.ix[j, '内容']
+        sql_time = data.ix[j, '时间']
+        url = data.ix[j, 'url']
+        province = data.ix[j, '省']
+        city = data.ix[j, '市']
+        qu = data.ix[j, '区']
+        come_from = data.ix[j, '网站来源']
+        ITbankuai = data.ix[j, '网站板块']
+        insert_time = data.ix[j, '插入时间']
+        #print(title,bankuai,sql_time,url,province,city,qu,come_from,ITbankuai,insert_time)
+        #print(data)
+        cur = conn.cursor()
+        cur.execute(
+                "insert into 新表 (标题,板块,内容,时间,url,省,市,区,网站来源,网站板块,插入时间,分类结果,详细结果,情感分析) values('%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s','%s');" % (
+                    title, bankuai, comment, sql_time, url, province, city, qu, come_from, ITbankuai, insert_time,classifier,details,emotion_result))
+        print('insert yet')
+        cur.close()
+    except:
+        print('insert error')
+
+
+
+def top3(p):
+    top_index=np.zeros(3)
+    top_prob=np.zeros(3)
+    top3_list = []
+    for i in range(3):
+        top_index[i] = p.argsort()[-i-1]
+    top_index = top_index.astype(int)
+    for j in range(3):
+        top_prob[j] = p[top_index[j]]
+#    top3_list.append(top_index)
+#    top3_list.append(top_prob)
+    return top_index,top_prob
+
+
+if __name__ in '__main__':
+    emotion_words_bag = pd.read_table('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\emotion.txt',encoding='utf-8')
+    posdict = []
+    negdict = []
+    posemotion = []
+    negemotion = []
+    possentiments = []
+    negsentiments = []
+    for i in range(len(emotion_words_bag)):
+        if emotion_words_bag[emotion_words_bag.columns[6]][i] == 1:
+            posdict.append(emotion_words_bag[emotion_words_bag.columns[0]][i])
+            posemotion.append(emotion_words_bag[emotion_words_bag.columns[5]][i])
+            possentiments.append(emotion_words_bag[emotion_words_bag.columns[4]][i])
+        if emotion_words_bag[emotion_words_bag.columns[6]][i] == 2:
+            negdict.append(emotion_words_bag[emotion_words_bag.columns[0]][i])
+            negemotion.append(emotion_words_bag[emotion_words_bag.columns[5]][i])
+            negsentiments.append(emotion_words_bag[emotion_words_bag.columns[4]][i])
+    file = codecs.open('D:\文本分类\chinese_stopword.txt','r',encoding='utf8')
+    stopwords = file.read()
+    file.close()
+    f1 = open('D:\pickle\wordlist.txt', 'rb')
+    words_list = pickle.load(f1)
+    f1.close()
+    f2 = open('D:\pickle\\filenamelist.txt', 'rb')
+    filename_list = pickle.load(f2)
+    f2.close()
+    f3 = open('D:\pickle\categorylist.txt', 'rb')
+    category_list = pickle.load(f3)
+    f3.close()
+    f4 = open('D:\pickle\\feature.txt', 'rb')
+    nolabel_feature = pickle.load(f4)
+    f4.close()
+#    pre_text = codecs.open('D:\文本分类\\新能源.txt', 'r', encoding='utf-8')
+#    pre_text = pre_text.read()
+    category_list_v = np.unique(category_list)
+    mostdict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\most.txt','r',encoding='utf8')
+    mostdict = mostdict_.read()
+    mostdict_.close()
+    verydict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\\very.txt','r',encoding='utf8')
+    verydict= verydict_.read()
+    verydict_.close()
+    file = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\more.txt','r',encoding='utf8')
+    moredict = file.read()
+    file.close()
+    ishdict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\ish.txt','r',encoding='utf8')
+    ishdict = ishdict_.read()
+    ishdict_.close()
+    insufficientdict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\insufficiently.txt','r',encoding='utf8')
+    insufficientdict = insufficientdict_.read()
+    insufficientdict_.close()
+    inversedict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\inverse.txt','r',encoding='utf8')
+    inversedict = inversedict_.read()
+    inversedict_.close()
+    print('----------------------->开始测试<------------------------')
+    print(category_list_v)
+#    ch2_sx_np = tfidf_mat_pre(pre_text)
+#    clf = joblib.load("D:\文本分类\\train_model.m")
+#    p = clf.predict_proba(ch2_sx_np).flatten()
+#    #print(p)
+#    top_index ,top_prob = top3(p)
+#    #print(top_index,top_prob)
+#    first = top_prob[0]
+#    second = top_prob[1]
+#    third = top_prob[2]
+#    if first < 0.1:
+#        classifier = '无法判别'
+#    else:
+#        if first/second >=2:
+#            classifier = '%s>>概率: %.3f'%(category_list_v[top_index[0]],top_prob[0])
+#        else:
+#            if first/third >=2:
+#                classifier = '%s>>概率: %.3f,%s>>概率: %.3f'%(category_list_v[top_index[0]],top_prob[0],category_list_v[top_index[1]],top_prob[1])
+#            else:
+#                classifier = '%s>>概率: %.3f,%s>>概率: %.3f,%s>>概率: %.3f'%(category_list_v[top_index[0]],top_prob[0],category_list_v[top_index[1]],top_prob[1],category_list_v[top_index[2]],top_prob[2])
+#    print(classifier)
+    content_list = {'beijing_content': 0, 'chongqing_content': 0}  # //测试用
+    while True:
+        for i in content_list:
+            time.sleep(1)
+            conn = pymysql.connect(
+                host='60.191.74.66',
+                port=3306,
+                user='lwj',
+                passwd='123456',
+                db='zhejiang_zixun',
+                charset='utf8'
+            )
+            table_name = str(i)
+            # print table_name
+            ID_last = content_list[i]
+            # print ID_last
+            sqlcmd = "SELECT * FROM " + '%s where id>%s and id<%s' % (table_name, ID_last, ID_last + 10)
+            data = pd.read_sql(sqlcmd, conn,index_col='id')
+            print('get data')
+            conn.close()
+            ID = data.index
+            # print ID.max()
+            if ID_last == ID.max():
+                print('ID_last==ID.max()')
+            else:
+                # print ID_last
+                # data=data.drop(['id'], axis=1)
+                contents = data['内容']
+                headings = data['标题']
+                content_list[i] = ID.max()
+                # print 'new_idlast'+str(content_list[i])
+                # print 'get contents'
+                conn = pymysql.connect(
+                    host='localhost',
+                    port=3306,
+                    user='root',
+                    passwd='root',
+                    db='classification',
+                    charset='utf8'
+                )
+                for j in range(len(contents)):
+                    content = contents[j+ID_last+1]
+                    heading = headings[j+ID_last+1]
+                    # print j
+                    # print ID_last
+                    try:
+                        classifier_insertSql(content,heading,j)
+                    except:
+                        print(None)
+                conn.close()
+
+
+
