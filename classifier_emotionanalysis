@@ -25,7 +25,7 @@ def tfidf_mat_pre(pre_text):
     tfidf_df_1_pre,df_columns_pre = tfidf_mat(words_list_pre,filename_list_pre,category_list_pre)
     tfidf_df_v = tfidf_df_1_pre.iloc[-1:]
     #print(tfidf_df_v, df_columns_pre)
-    ch2 = SelectKBest(chi2, k=10000)
+    ch2 = SelectKBest(chi2, k=5000)
     nolabel_feature_pre = [x for x in tfidf_df_v.columns if x not in ['label']]
     miss_feature = [l for l in nolabel_feature if l not in nolabel_feature_pre]
     print('丢失特征：%s >>>>>丢失个数:%s'% (miss_feature,len(miss_feature)))
@@ -39,13 +39,14 @@ def tfidf_mat_pre(pre_text):
     ch2_sx_np = ch2.fit_transform(tfidf_df_v[nolabel_feature_pre], tfidf_df_v['label'])
     return ch2_sx_np
 
-def classifier_pre(heading,content):
+def classifier_pre(heading,content,source):
     #count=0
     clf = joblib.load("D:\文本分类\\train_model.m")
     heading = filewordProcess(heading)
     heading = heading.split(sep=' ')
     classifier = []
     details = '基于标题分类'
+
     for i in range(len(heading)):
         if heading[i] in ['养殖','畜牧','禽','猪','牛','羊','畜禽养殖','动物防疫','畜牧兽医局','饲料']:
             classifier.append('牧业')
@@ -55,33 +56,33 @@ def classifier_pre(heading,content):
             classifier.append('建筑业')
         elif heading[i] in ['电商平台','线上','电子商务','淘宝','微商','京东','天猫','阿里巴巴','o2o','物流','电商']:
             classifier.append('电商')
-        elif heading[i] in ['贫困','脱贫','惠民','帮扶','致富','扶持','低保','困难群众','返贫','增收']:
+        elif heading[i] in ['贫困','脱贫','惠民','帮扶','致富','扶持','低保','困难群众','返贫','增收','减贫','扶贫']:
             classifier.append('扶贫')
         elif heading[i] in ['贸易','贷款','税收','证券','股票','财政','融资','投资','货币','银行','金融']:
             classifier.append('金融')
-        elif heading[i] in ['分析','数据','云计算','互联网+','数字化','信息化','物联网','智能化','人工智能','数据资源']:
+        elif heading[i] in ['分析','数据','云计算','互联网+','数字化','信息化','物联网','智能化','人工智能','数据资源','网络信息','网络']:
             classifier.append('大数据')
-        elif heading[i] in ['科技扶贫','指导','科技先行','科技人员','科技服务','科技帮扶','人才','派驻','特派员','科技信息服务']:
+        elif heading[i] in ['科技扶贫','指导','科技先行','科技人员','科技服务','科技帮扶','人才','派驻','特派员','科技信息服务','星创','星创天地']:
             classifier.append('科技特派员')
-        elif heading[i] in ['转化','创新','突破','高新技术','科技型','专业化','孵化','技术成果','技术产权','专利信息']:
+        elif heading[i] in ['转化','创新','突破','高新技术','科技型','专业化','孵化','技术成果','技术产权','专利信息','科技成果']:
             classifier.append('科技成果')
-        elif heading[i] in ['节能','减排','污染','排放','环境质量','生态环境','废物','环境监测','新能源','自然']:
+        elif heading[i] in ['节能','减排','污染','排放','环境质量','生态环境','废物','环境监测','新能源','自然','环保']:
             classifier.append('环保')
         elif heading[i] in ['农药','庄稼','谷物','种植','果树','节气','耕种','栽培','农机','肥料']:
             classifier.append('农业')
         elif heading[i] in ['林场','野生','封禁','防火','森林','乔木','生态保护','造林','砍伐','森林火灾','林业']:
             classifier.append('林业')
-        elif heading[i] in ['渔船','捕捞','海鲜','水产养殖','禁渔','渔网','水产加工品','远洋','禁渔期']:
+        elif heading[i] in ['渔船','捕捞','海鲜','水产养殖','禁渔','渔网','水产加工品','远洋','禁渔期','渔业']:
             classifier.append('渔业')
         elif heading[i] in ['批发','零售','外卖','超市','小商品','成本增加','自有品牌','小卖部']:
             classifier.append('批发零售')
-        elif heading[i] in ['交通','运输','铁路','建设','客运','航运','高铁','公路','快递','通车','道路','全线通车','隧道','拥堵']:
+        elif heading[i] in ['交通','运输','铁路','客运','航运','高铁','公路','快递','通车','道路','全线通车','隧道','拥堵','贯通','港口']:
             classifier.append('交通运输')
         elif heading[i] in ['仓库','货物','集装箱','货垛','库存','动态管理','库房','堆码']:
             classifier.append('仓储')
         elif heading[i] in ['食品安全','乳品','健康状态','重金属','维生素','转基因','添加剂','食品包装','微生物','食品检测']:
             classifier.append('食品安全')
-        elif heading[i] in ['培训','学校''高考','高校','考试','教学大纲','成人教育','学前教育','大学','教职员','招生','考生']:
+        elif heading[i] in ['培训','学校','高考','高校','考试','教学大纲','成人教育','学前教育','大学','教职员','招生','考生']:
             classifier.append('教育')
         elif heading[i] in ['主持','会议','政策','召开','开展','制度','群众','干部','作风','反腐','通告','调研']:
             classifier.append('会议活动')
@@ -89,32 +90,54 @@ def classifier_pre(heading,content):
             classifier.append('医疗')
     classifier = ','.join(np.unique(classifier))
     while(classifier ==''):
-        print('标题分类：未知>>>>>进行内容分类>>>>>>')
-        ch2_sx_np = tfidf_mat_pre(content)
-        p = clf.predict_proba(ch2_sx_np).flatten()
-        # print(p)
-        top_index, top_prob = top3(p)
-        # print(top_index,top_prob)
-        first = top_prob[0]
-        second = top_prob[1]
-        third = top_prob[2]
-        if first < 0.2:
-            classifier = '其他'
-            details = '其他'
-        else:
-            if first / second >= 2:
-                classifier = '%s' % (category_list_v[top_index[0]])
-                details = '%s>>概率: %.3f' % (category_list_v[top_index[0]], top_prob[0])
-
+        print('标题分类：未知>>>>>进行来源分类>>>>>>')
+        classifier = []
+        details = '基于来源分类'
+        for j in range(len(source)):
+            if source[j] in ['农', '粮']:
+                classifier.append('农业')
+            elif source[j] in ['林']:
+                classifier.append('林业')
+            elif source[j] in ['牧', '畜']:
+                classifier.append('牧业')
+            elif source[j] in ['药']:
+                classifier.append('医疗')
+            elif source[j] in ['食']:
+                classifier.append('食品安全')
+            elif source[j] in ['财', '经']:
+                classifier.append('金融')
+            elif source[j] in ['科', '技']:
+                classifier.append('科技成果')
+            elif source[j] in ['环', '保']:
+                classifier.append('科技成果')
+        classifier = ','.join(np.unique(classifier))
+        while (classifier == ''):
+            print('来源分类：未知>>>>>进行内容分类>>>>>>')
+            ch2_sx_np = tfidf_mat_pre(content)
+            p = clf.predict_proba(ch2_sx_np).flatten()
+            # print(p)
+            top_index, top_prob = top3(p)
+            # print(top_index,top_prob)
+            first = top_prob[0]
+            second = top_prob[1]
+            third = top_prob[2]
+            if first <= 0.2:
+                classifier = '其他'
+                details = '其他'
             else:
-                if first / third >= 2:
-                    classifier = '%s,%s' % (category_list_v[top_index[0]], category_list_v[top_index[1]])
-                    details = '%s>>概率: %.3f,%s>>概率: %.3f' % (
-                            category_list_v[top_index[0]], top_prob[0], category_list_v[top_index[1]], top_prob[1])
+                if first / second >= 2:
+                    classifier = '%s' % (category_list_v[top_index[0]])
+                    details = '%s>>概率: %.3f' % (category_list_v[top_index[0]], top_prob[0])
+
                 else:
-                    classifier = '%s,%s,%s' % (category_list_v[top_index[0]], category_list_v[top_index[1]],
+                    if first / third >= 2:
+                        classifier = '%s,%s' % (category_list_v[top_index[0]], category_list_v[top_index[1]])
+                        details = '%s>>概率: %.3f,%s>>概率: %.3f' % (
+                            category_list_v[top_index[0]], top_prob[0], category_list_v[top_index[1]], top_prob[1])
+                    else:
+                        classifier = '%s,%s,%s' % (category_list_v[top_index[0]], category_list_v[top_index[1]],
                                                    category_list_v[top_index[2]])
-                    details = '%s>>概率: %.3f,%s>>概率: %.3f,%s>>概率: %.3f' % (
+                        details = '%s>>概率: %.3f,%s>>概率: %.3f,%s>>概率: %.3f' % (
                             category_list_v[top_index[0]], top_prob[0], category_list_v[top_index[1]], top_prob[1],
                             category_list_v[top_index[2]], top_prob[2])
     print(classifier, details)
@@ -131,7 +154,7 @@ def encode_data(data):
 
 # ===============================去停用词===================================
 def del_stopwords(seg_sent):
-    stopwords_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\stop_words.txt', 'r', encoding='utf8')
+    stopwords_ = codecs.open('D:\文本分类\文本情感分析\\news_analysis\stop_words.txt', 'r', encoding='utf8')
     stopwords = stopwords_.read()
     stopwords_.close()
     new_sent = []
@@ -266,8 +289,8 @@ def single_review_sentiment_score(content):
     return result  # ,pos_result,neg_result,happy,fine,fury,wane,fear,vice,shock
 
 
-def classifier_insertSql(content,heading,j):
-    classifier,details = classifier_pre(heading,content)
+def classifier_insertSql(content,heading,source,j):
+    classifier,details = classifier_pre(heading,content,source)
     emotion_result = single_review_sentiment_score(content)
     try:
         j = j+ID_last+1
@@ -313,7 +336,7 @@ def top3(p):
 
 
 if __name__ in '__main__':
-    emotion_words_bag = pd.read_table('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\emotion.txt',encoding='utf-8')
+    emotion_words_bag = pd.read_table('D:\文本分类\文本情感分析\\news_analysis\emotion.txt',encoding='utf-8')
     posdict = []
     negdict = []
     posemotion = []
@@ -332,37 +355,37 @@ if __name__ in '__main__':
     file = codecs.open('D:\文本分类\chinese_stopword.txt','r',encoding='utf8')
     stopwords = file.read()
     file.close()
-    f1 = open('D:\pickle\wordlist.txt', 'rb')
+    f1 = open('D:\文本分类\pickle\wordlist.txt', 'rb')
     words_list = pickle.load(f1)
     f1.close()
-    f2 = open('D:\pickle\\filenamelist.txt', 'rb')
+    f2 = open('D:\文本分类\pickle\\filenamelist.txt', 'rb')
     filename_list = pickle.load(f2)
     f2.close()
-    f3 = open('D:\pickle\categorylist.txt', 'rb')
+    f3 = open('D:\文本分类\pickle\categorylist.txt', 'rb')
     category_list = pickle.load(f3)
     f3.close()
-    f4 = open('D:\pickle\\feature.txt', 'rb')
+    f4 = open('D:\文本分类\pickle\\feature.txt', 'rb')
     nolabel_feature = pickle.load(f4)
     f4.close()
 #    pre_text = codecs.open('D:\文本分类\\新能源.txt', 'r', encoding='utf-8')
 #    pre_text = pre_text.read()
     category_list_v = np.unique(category_list)
-    mostdict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\most.txt','r',encoding='utf8')
+    mostdict_ = codecs.open('D:\文本分类\文本情感分析\\news_analysis\most.txt','r',encoding='utf8')
     mostdict = mostdict_.read()
     mostdict_.close()
-    verydict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\\very.txt','r',encoding='utf8')
+    verydict_ = codecs.open('D:\文本分类\文本情感分析\\news_analysis\\very.txt','r',encoding='utf8')
     verydict= verydict_.read()
     verydict_.close()
-    file = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\more.txt','r',encoding='utf8')
+    file = codecs.open('D:\文本分类\文本情感分析\\news_analysis\more.txt','r',encoding='utf8')
     moredict = file.read()
     file.close()
-    ishdict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\ish.txt','r',encoding='utf8')
+    ishdict_ = codecs.open('D:\文本分类\文本情感分析\\news_analysis\ish.txt','r',encoding='utf8')
     ishdict = ishdict_.read()
     ishdict_.close()
-    insufficientdict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\insufficiently.txt','r',encoding='utf8')
+    insufficientdict_ = codecs.open('D:\文本分类\文本情感分析\\news_analysis\insufficiently.txt','r',encoding='utf8')
     insufficientdict = insufficientdict_.read()
     insufficientdict_.close()
-    inversedict_ = codecs.open('C:\\Users\Administrator\Desktop\文本情感分析\\news_analysis\inverse.txt','r',encoding='utf8')
+    inversedict_ = codecs.open('D:\文本分类\文本情感分析\\news_analysis\inverse.txt','r',encoding='utf8')
     inversedict = inversedict_.read()
     inversedict_.close()
     print('----------------------->开始测试<------------------------')
@@ -403,7 +426,8 @@ if __name__ in '__main__':
             # print table_name
             ID_last = content_list[i]
             # print ID_last
-            sqlcmd = "SELECT * FROM " + '%s where id>%s and id<%s' % (table_name, ID_last, ID_last + 10)
+            #id > % s and id < % s
+            sqlcmd = "SELECT * FROM " + '%s where id>%s and id<%s ' % (table_name, ID_last, ID_last + 10)
             data = pd.read_sql(sqlcmd, conn,index_col='id')
             print('get data')
             conn.close()
@@ -416,6 +440,7 @@ if __name__ in '__main__':
                 # data=data.drop(['id'], axis=1)
                 contents = data['内容']
                 headings = data['标题']
+                sources  = data['网站来源']
                 content_list[i] = ID.max()
                 # print 'new_idlast'+str(content_list[i])
                 # print 'get contents'
@@ -430,10 +455,11 @@ if __name__ in '__main__':
                 for j in range(len(contents)):
                     content = contents[j+ID_last+1]
                     heading = headings[j+ID_last+1]
+                    source  = sources[j+ID_last+1]
                     # print j
                     # print ID_last
                     try:
-                        classifier_insertSql(content,heading,j)
+                        classifier_insertSql(content,heading,source,j)
                     except:
                         print(None)
                 conn.close()
