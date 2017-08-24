@@ -35,3 +35,4 @@ if __name__ == '__main__':
 
 
  # D:\>python D:/搜索/word2vec_wiki.py zhwiki-latest-pages-articles.xml.bz2 wiki.zh.txt
+ #
