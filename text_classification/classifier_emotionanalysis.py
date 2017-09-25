@@ -805,10 +805,10 @@ if __name__ in '__main__':
         for i in content_list:
             time.sleep(0.5)
             conn = pymysql.connect(
-                host='60.191.74.66',
+                host='x',
                 port=3306,
-                user='lwj',
-                passwd='123456',
+                user='x',
+                passwd='x',
                 db='most',
                 charset='utf8'
             )
