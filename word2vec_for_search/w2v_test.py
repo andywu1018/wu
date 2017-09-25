@@ -49,10 +49,10 @@ if __name__ == '__main__':
     getwords = list(jieba.cut(askingwords))
     # keywords = getwords.append(askingwords)
     conn = pymysql.connect(
-        host='60.191.74.66',
+        host='x',
         port=3306,
-        user='wd',
-        passwd='123456',
+        user='x',
+        passwd='x',
         db='most',
         charset='utf8')
     features = ['ID_relative','title','content','topic']
