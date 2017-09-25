@@ -120,8 +120,8 @@ for i in content_list:
     NewWord(fdir_dic,fdir_daily,fdir_out)
     conn = pymysql.connect(host='10.2.2.250',
         port=3306,
-        user='wd',
-        passwd='123456',
+        user='XXXX',
+        passwd='XXXXX',
         db='policies',
         charset='utf8')
     dailynew = load(fdir_out)
