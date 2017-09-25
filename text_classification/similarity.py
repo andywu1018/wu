@@ -209,10 +209,10 @@ if __name__ == '__main__':
         contents = data['内容']
         ids = data['id']
         # conn = pymysql.connect(
-        #                host='60.191.74.66',
+        #                host='x',
         #                port=3306,
-        #                user='lwj',
-        #                passwd='123456',
+        #                user='x',
+        #                passwd='x',
         #                db='most',
         #                charset='utf8'
         #               )
