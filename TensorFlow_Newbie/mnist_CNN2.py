@@ -1,50 +1,79 @@
 #*- utf8
 #@author：andywu1018@126.com
-import  tensorflow as tf
+
+import tensorflow as tf
+import numpy as np
 import input_data
+
 mnist = input_data.read_data_sets('MNIST_data/',one_hot=True)
-# mnist.train 训练样本 # *.images [55000,784]  *.labels  [55000,10] 标签 == 0到1
-# mnist.test  测试样本 # *.images [10000,784]  *.labels  [10000,10]
+sess = tf.InteractiveSession() #交互型session
 
-#定义模型 ：softmax 回归   定义：softmax(x)i =  exp(xi)/Σ[exp(xj)]
+x = tf.placeholder("float", shape=[None, 784])
+y_ = tf.placeholder("float", shape=[None, 10])
 
-# y = softmax(Wx+b)
-x = tf.placeholder('float',[None,784]) #定义占位符入参x作为图片像素
-W = tf.Variable(tf.zeros([784,10]))
-b = tf.Variable(tf.zeros([10]))
-# y = softmax(Wx+b)
-y = tf.nn.softmax(tf.matmul(x,W)+b)
+# input = tf.Variable(tf.random_normal([10,5,5,5]))     #图片数量，5×5，通道数
+# filter = tf.Variable(tf.random_normal([3,3,5,7]))     #3×3 卷积核，通道数，卷积核数量
+#初始化权重和偏置值的函数
+def weight_variable(shape):
+    initial = tf.truncated_normal(shape, stddev=0.1)
+    return tf.Variable(initial)
 
-# trainning
-# 评价标准 ： 交叉熵
-# H y'(y)  =  -Σy'ilog(yi)     *y是预测分布  y'是实际分布，需要我们手动输入
-y_ = tf.placeholder('float',[None,10])
-cross_entropy =  -tf.reduce_sum(y_*tf.log(y))
+def bias_variable(shape):
+    initial = tf.constant(0.1, shape=shape)
+    return tf.Variable(initial)
 
-# 收敛方法 : 梯度下降法 下降速率0.01  损失函数:交叉熵
-train_step = tf.train.GradientDescentOptimizer(0.01).minimize(cross_entropy)
+#卷积和池化
+def conv2d(x, W):
+    return tf.nn.conv2d(input=x, filter=W, strides=[1, 1, 1, 1], padding='SAME')  #padding = 'same'  ,'valid'
 
-#初始化所有变量
-init = tf.initialize_all_variables()
-sess = tf.Session()
-sess.run(init)
-#尽量使用with ,即停即闭
+def max_pool_2x2(x):
+    return tf.nn.max_pool(x, ksize=[1, 2, 2, 1],strides=[1, 2, 2, 1], padding='SAME')
+#strides:步长 一般为[1,stride,stride,1]
 
-#开始训练模型
-for  i in range(1000):
-    batch_xs ,batch_ys = mnist.train.next_batch(100)
-    sess.run(train_step,feed_dict={x:batch_xs,y_:batch_ys})
+#卷积层
+#第一次卷积
 
-#评估模型
-correct_prediction  = tf.equal(tf.argmax(y,1),tf.argmax(y_,1))
-accuracy = tf.reduce_mean(tf.cast(correct_prediction,'float'))
+W_conv1 = weight_variable([5, 5, 1, 32])    #[5×5 patch, 1 输入通道 ,32 输出通道]
+b_conv1 = bias_variable([32])               #每个通道都要有一个偏置值
+x_image = tf.reshape(x,[-1,28,28,1])        #28×28的图像，1个通道（灰白  彩色rgb则为3
+#激活函数
+h_conv1 = tf.nn.relu(conv2d(x_image,W_conv1)+b_conv1)
+h_pool1 = max_pool_2x2(h_conv1)
 
-#正确率
-print(sess.run(accuracy,feed_dict={x:mnist.test.images,y_:mnist.test.labels}))
+#第二层卷积
 
-#  ******NOTES
-# 1.tf.matmul(W,x)  != tf.matmul(x,W)?    这个想当然了，根据矩阵乘法，换一下位置就会出错
-# 2.我在初始化变量的时候用了 with 语句 ,导致在后面每一步都使用了 with 语句来打开执行sess，会报错
-#   报错原因是变量未初始化,改成初始化之后不关闭sess之后不出现错误.
-# 3.整个流程：先确定数据类型，数据大小，规则等；确定模型，入参使用placeholder，需要训练的参数使用Variable；
-#   确定损失函数，本次使用交叉熵；确定优化算法（收敛），常用的有梯度下降算法、最小二乘法；随机训练；评估模型
+W_conv2 = weight_variable([5,5,32,64])
+b_conv2 = bias_variable([64])
+h_conv2 = tf.nn.relu(conv2d(h_pool1,W_conv2)+b_conv2)
+h_pool2 = max_pool_2x2(h_conv2)
+#此时h_conv2 是7×7×64的图
+#密集连接层
+W_fc1 = weight_variable([7 * 7 * 64, 1024])
+b_fc1 = bias_variable([1024])
+h_pool2_flat = tf.reshape(h_pool2, [-1, 7*7*64])
+h_fc1 = tf.nn.relu(tf.matmul(h_pool2_flat, W_fc1) + b_fc1)
+
+#dropout层  解决过拟合和费时的问题，每次训练随机关闭一些神经元
+keep_prob = tf.placeholder("float")
+h_fc1_drop = tf.nn.dropout(h_fc1, keep_prob)
+
+#输出层
+W_fc2 = weight_variable([1024, 10])
+b_fc2 = bias_variable([10])
+y_conv=tf.nn.softmax(tf.matmul(h_fc1_drop, W_fc2) + b_fc2)
+
+#训练和评估
+cross_entropy = -tf.reduce_sum(y_*tf.log(y_conv))
+train_step = tf.train.AdamOptimizer(1e-4).minimize(cross_entropy)
+correct_prediction = tf.equal(tf.argmax(y_conv,1), tf.argmax(y_,1))
+accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
+sess.run(tf.initialize_all_variables())
+for i in range(20000):
+    batch = mnist.train.next_batch(50)
+    if i % 100 == 0:
+        train_accuracy = accuracy.eval(feed_dict={
+            x: batch[0], y_: batch[1], keep_prob: 1.0})
+        print("step %d, training accuracy %g" % (i, train_accuracy))
+    train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
+print("test accuracy %g" % accuracy.eval(feed_dict={
+            x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
